@@ -1,6 +1,6 @@
 import os
 import requests
-import CSV
+import csv
 
 # Get environment variables from GitHub Actions
 token = os.environ.get('GITHUB_TOKEN') #org内なので要らない
