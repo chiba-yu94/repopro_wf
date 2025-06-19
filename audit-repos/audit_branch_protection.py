@@ -3,8 +3,8 @@ import requests
 import CSV
 
 # Get environment variables from GitHub Actions
-token = os.environ.get('GITHUB_TOKEN')
-org = os.environ.get('ORG_NAME', 'your-org-name')  # Replace as needed
+token = os.environ.get('GITHUB_TOKEN') #org内なので要らない
+org = os.environ.get('ORG_NAME', 'test-for-my-prg')  # orgのIDに変える
 
 headers = {
     "Authorization": f"token {token}",
