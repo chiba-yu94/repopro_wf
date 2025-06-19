@@ -2,6 +2,11 @@ name: Branch Protection Audit
 
 on:
   workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch name to audit'
+        required: true
+        default: 'main'
 
 jobs:
   audit:
@@ -19,12 +24,15 @@ jobs:
 
     - name: Run audit script
       env:
-        GITHUB_TOKEN: ${{ secrets.MY_PAT }}    # repoのPATにかえる
-        ORG_NAME: test-for-my-prg   # orgの名前に変える
+        GITHUB_TOKEN: ${{ secrets.MY_PAT }}
+        ORG_NAME: test-for-my-prg     # orgの名前に変える
+        BRANCH: ${{ github.event.inputs.branch }}
       run: python audit_branch_protection.py
 
     - name: Upload CSV artifact
       uses: actions/upload-artifact@v4
       with:
         name: protection_audit
-        path: protection_audit.csv
+        path: |
+          classic_protections_matrix.csv
+          rulesets_matrix.csv
