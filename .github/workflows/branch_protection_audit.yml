@@ -35,5 +35,5 @@ jobs:
         name: protection_audit
         path: |
           クラシック保護マトリックス.csv
-          ルールセットマトリックス.csv
+          ルールセット個別詳細.csv
 
