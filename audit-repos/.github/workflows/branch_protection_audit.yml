@@ -17,7 +17,7 @@ jobs:
     - name: Run audit script
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        ORG_NAME: your-org-name   # Change this!
+        ORG_NAME: test-for-my-prg   # orgの名前に変える
       run: python audit_branch_protection.py
     - name: Upload CSV artifact
       uses: actions/upload-artifact@v4
