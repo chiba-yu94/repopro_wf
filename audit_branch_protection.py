@@ -88,6 +88,7 @@ def main():
         writer = csv.writer(csvfile)
         writer.writerow(['repo', 'branch', 'classic_protections', 'rulesets'])
         repos = get_repos()
+        print("Repos found:", [repo['name'] for repo in repos])
         for repo in repos:
             repo_name = repo['name']
             classic = get_classic_protection(repo_name)
