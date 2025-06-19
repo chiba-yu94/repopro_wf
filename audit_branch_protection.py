@@ -10,22 +10,23 @@ HEADERS = {
     "Accept": "application/vnd.github+json"
 }
 
-# Protections to audit (expand as needed)
+# 保護項目（クラシックプロテクション）
 CLASSIC_PROTECTIONS = [
-    ('Require PR review', lambda p: bool(p.get('required_pull_request_reviews'))),
-    ('Include admins', lambda p: bool(p.get('enforce_admins', {}).get('enabled'))),
-    ('Require status checks', lambda p: bool(p.get('required_status_checks'))),
-    ('Require linear history', lambda p: bool(p.get('required_linear_history', {}).get('enabled'))),
-    ('Force pushes allowed', lambda p: bool(p.get('allow_force_pushes', {}).get('enabled'))),
-    ('Allow deletions', lambda p: bool(p.get('allow_deletions', {}).get('enabled'))),
+    ('プルリクエストレビューの必須', lambda p: bool(p.get('required_pull_request_reviews'))),
+    ('管理者も含める', lambda p: bool(p.get('enforce_admins', {}).get('enabled'))),
+    ('ステータスチェックの必須', lambda p: bool(p.get('required_status_checks'))),
+    ('直線的な履歴の必須', lambda p: bool(p.get('required_linear_history', {}).get('enabled'))),
+    ('強制プッシュの許可', lambda p: bool(p.get('allow_force_pushes', {}).get('enabled'))),
+    ('削除の許可', lambda p: bool(p.get('allow_deletions', {}).get('enabled'))),
 ]
 
+# 保護項目（ルールセット）
 RULESET_PROTECTIONS = [
-    ('Restrict creations', lambda r: any(rule['type'] == 'creation' for rule in r.get('rules', []))),
-    ('Restrict updates', lambda r: any(rule['type'] == 'update' for rule in r.get('rules', []))),
-    ('Require PR review', lambda r: any(rule['type'] == 'pull_request_review' for rule in r.get('rules', []))),
-    ('Require status checks', lambda r: any(rule['type'] == 'required_status_checks' for rule in r.get('rules', []))),
-    ('Include admins', lambda r: bool(r.get('bypass_actors'))),
+    ('作成の制限', lambda r: any(rule['type'] == 'creation' for rule in r.get('rules', []))),
+    ('更新の制限', lambda r: any(rule['type'] == 'update' for rule in r.get('rules', []))),
+    ('プルリクエストレビューの必須', lambda r: any(rule['type'] == 'pull_request_review' for rule in r.get('rules', []))),
+    ('ステータスチェックの必須', lambda r: any(rule['type'] == 'required_status_checks' for rule in r.get('rules', []))),
+    ('管理者も含める', lambda r: bool(r.get('bypass_actors'))),
 ]
 
 def get_repos():
@@ -60,9 +61,9 @@ def get_rulesets(repo):
 def main():
     repos = get_repos()
     repo_names = [repo['name'] for repo in repos]
-    print(f"Repos found: {repo_names}")
+    print(f"取得したリポジトリ: {repo_names}")
 
-    # --- CLASSIC CSV ---
+    # --- クラシックプロテクション（CSV）---
     classic_matrix = {prot[0]: {} for prot in CLASSIC_PROTECTIONS}
     classic_columns = []
 
@@ -73,17 +74,17 @@ def main():
         for prot_name, check_fn in CLASSIC_PROTECTIONS:
             classic_matrix[prot_name][col] = 'y' if check_fn(prot) else 'n'
 
-    # Write classic protections matrix CSV
-    with open('classic_protections_matrix.csv', 'w', newline='', encoding='utf-8') as f:
+    # Shift-JISで書き出し
+    with open('クラシック保護マトリックス.csv', 'w', newline='', encoding='shift_jis') as f:
         writer = csv.writer(f)
-        writer.writerow(['protection'] + [col[0] for col in classic_columns])
+        writer.writerow(['保護項目'] + [col[0] for col in classic_columns])
         writer.writerow([''] + [col[1] for col in classic_columns])
         for prot_name in classic_matrix:
             row = [prot_name] + [classic_matrix[prot_name][col] for col in classic_columns]
             writer.writerow(row)
-    print("Classic protections matrix exported.")
+    print("クラシック保護マトリックスを書き出しました。")
 
-    # --- RULESET CSV ---
+    # --- ルールセット（CSV）---
     ruleset_columns = []
     ruleset_matrix = {prot[0]: {} for prot in RULESET_PROTECTIONS}
 
@@ -99,24 +100,24 @@ def main():
             if rs.get('enforcement', 'active') == 'disabled':
                 applies = False
             if applies:
-                col = (repo, rs.get('name', 'unnamed'), BRANCH)
+                col = (repo, rs.get('name', 'ルールセット名なし'), BRANCH)
                 ruleset_columns.append(col)
                 for prot_name, check_fn in RULESET_PROTECTIONS:
                     ruleset_matrix[prot_name][col] = 'y' if check_fn(rs) else 'n'
 
     ruleset_columns = list(dict.fromkeys(ruleset_columns))
 
-    with open('rulesets_matrix.csv', 'w', newline='', encoding='utf-8') as f:
+    with open('ルールセットマトリックス.csv', 'w', newline='', encoding='shift_jis') as f:
         writer = csv.writer(f)
-        writer.writerow(['protection'] + [col[0] for col in ruleset_columns])
-        writer.writerow([''] + [col[1] for col in ruleset_columns])   # ruleset names
-        writer.writerow([''] + [col[2] for col in ruleset_columns])   # branch names
+        writer.writerow(['保護項目'] + [col[0] for col in ruleset_columns])
+        writer.writerow([''] + [col[1] for col in ruleset_columns])   # ルールセット名
+        writer.writerow([''] + [col[2] for col in ruleset_columns])   # ブランチ名
         for prot_name in ruleset_matrix:
             row = [prot_name] + [
                 ruleset_matrix[prot_name].get(col, 'n') for col in ruleset_columns
             ]
             writer.writerow(row)
-    print("Rulesets matrix exported.")
+    print("ルールセットマトリックスを書き出しました。")
 
 if __name__ == "__main__":
     main()
