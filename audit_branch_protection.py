@@ -10,28 +10,42 @@ HEADERS = {
     "Accept": "application/vnd.github+json"
 }
 
-# 固定項目リスト：クラシック
+# --- クラシック保護 項目 ---
 CLASSIC_KEYS = [
-    'プルリクエストレビューの必須',
-    '管理者も含める',
+    'プルリクエストのマージ前にレビューが必須',
     'ステータスチェックの必須',
     '直線的な履歴の必須',
+    'サイン済みコミット必須',
     '強制プッシュの許可',
     '削除の許可',
-    '必要なレビュー数',
-    '必須ステータスチェック名'
+    '管理者も含める',
+    '必須ステータスチェック名',
+    '必須レビュー数',
+    '必須デプロイメント環境'
 ]
 
-# 固定項目リスト：ルールセット
+# --- ルールセット 項目 ---
 RULESET_KEYS = [
     '作成の制限',
     '更新の制限',
     '削除の制限',
-    'プルリクエストレビューの必須',
-    '必要なレビュー数',
+    '直線的な履歴の必須',
+    'マージキュー必須',
+    'マージキュー: メソッド',
+    'マージキュー: 同時ビルド数',
+    'マージキュー: 最小グループ数',
+    'マージキュー: 最大グループ数',
+    'マージキュー: 最小グループ待機分',
+    'マージキュー: 全てのエントリが必須チェック合格',
+    'マージキュー: ステータスチェックタイムアウト',
+    'デプロイメント必須',
+    'サイン済みコミット必須',
+    'プルリクエストのマージ前に必須',
     'ステータスチェックの必須',
     '必須ステータスチェック名',
-    'バイパスアクター',
+    '強制プッシュのブロック',
+    'コードスキャン結果制限',
+    'バイパスアクター'
 ]
 
 def get_repos():
@@ -64,28 +78,28 @@ def get_rulesets(repo):
     return []
 
 def extract_classic_matrix(repos, branch):
-    # 列ごと（repo, branch）で全項目をy/nで埋める
     columns = []
     matrix = {k: {} for k in CLASSIC_KEYS}
     for repo in repos:
         prot = get_classic_protection(repo, branch)
         col = (repo, branch)
         columns.append(col)
-        # デフォルトn
         for key in CLASSIC_KEYS:
-            matrix[key][col] = 'n'
-        # 実値埋め
+            matrix[key][col] = 'NA'
         if prot:
-            matrix['プルリクエストレビューの必須'][col] = 'y' if prot.get('required_pull_request_reviews') else 'n'
-            matrix['管理者も含める'][col] = 'y' if prot.get('enforce_admins', {}).get('enabled') else 'n'
+            matrix['プルリクエストのマージ前にレビューが必須'][col] = 'y' if prot.get('required_pull_request_reviews') else 'n'
             matrix['ステータスチェックの必須'][col] = 'y' if prot.get('required_status_checks') else 'n'
             matrix['直線的な履歴の必須'][col] = 'y' if prot.get('required_linear_history', {}).get('enabled') else 'n'
+            matrix['サイン済みコミット必須'][col] = 'y' if prot.get('required_signatures', {}).get('enabled') else 'n'
             matrix['強制プッシュの許可'][col] = 'y' if prot.get('allow_force_pushes', {}).get('enabled') else 'n'
             matrix['削除の許可'][col] = 'y' if prot.get('allow_deletions', {}).get('enabled') else 'n'
+            matrix['管理者も含める'][col] = 'y' if prot.get('enforce_admins', {}).get('enabled') else 'n'
             pr_reviews = prot.get('required_pull_request_reviews', {})
-            matrix['必要なレビュー数'][col] = pr_reviews.get('required_approving_review_count', 'n') if pr_reviews else 'n'
+            matrix['必須レビュー数'][col] = pr_reviews.get('required_approving_review_count', 'NA') if pr_reviews else 'NA'
             status_checks = prot.get('required_status_checks', {}).get('checks', [])
-            matrix['必須ステータスチェック名'][col] = ','.join([sc['context'] for sc in status_checks]) if status_checks else 'n'
+            matrix['必須ステータスチェック名'][col] = ','.join([sc['context'] for sc in status_checks]) if status_checks else 'NA'
+            deployments = prot.get('required_deployments', {}).get('environments', [])
+            matrix['必須デプロイメント環境'][col] = ','.join(deployments) if deployments else 'NA'
     return columns, matrix
 
 def extract_ruleset_matrix(repos, branch):
@@ -95,7 +109,7 @@ def extract_ruleset_matrix(repos, branch):
         rulesets = get_rulesets(repo)
         if rulesets:
             for rs in rulesets:
-                rs_name = rs.get('name', 'ルールセット名なし')
+                rs_name = rs.get('name', 'ルールセット')
                 targets = rs.get('target_branches', []) or []
                 applies = False
                 if not targets or branch in targets or "all" in [t.lower() for t in targets]:
@@ -108,35 +122,52 @@ def extract_ruleset_matrix(repos, branch):
                     continue
                 col = (repo, rs_name, branch)
                 columns.append(col)
-                # デフォルトn
                 for key in RULESET_KEYS:
-                    matrix[key][col] = 'n'
-                # 実値埋め
+                    matrix[key][col] = 'NA'
                 for rule in rs.get('rules', []):
                     rule_type = rule.get('type', '')
-                    if rule_type == 'pull_request_review':
-                        matrix['プルリクエストレビューの必須'][col] = 'y'
-                        cnt = rule.get('configuration', {}).get('required_approving_review_count', 'n')
-                        matrix['必要なレビュー数'][col] = cnt
-                    elif rule_type == 'required_status_checks':
-                        matrix['ステータスチェックの必須'][col] = 'y'
-                        checks = rule.get('configuration', {}).get('required_status_checks', [])
-                        matrix['必須ステータスチェック名'][col] = ','.join(checks) if checks else 'n'
-                    elif rule_type == 'creation':
+                    conf = rule.get('configuration', {})
+                    if rule_type == 'creation':
                         matrix['作成の制限'][col] = 'y'
-                    elif rule_type == 'update':
+                    if rule_type == 'update':
                         matrix['更新の制限'][col] = 'y'
-                    elif rule_type == 'deletion':
+                    if rule_type == 'deletion':
                         matrix['削除の制限'][col] = 'y'
-                    if 'bypass_actors' in rs:
-                        actors = rs.get('bypass_actors', [])
-                        matrix['バイパスアクター'][col] = ','.join([a.get('actor_id', '') for a in actors]) if actors else 'n'
+                    if rule_type == 'required_linear_history':
+                        matrix['直線的な履歴の必須'][col] = 'y'
+                    if rule_type == 'merge_queue':
+                        matrix['マージキュー必須'][col] = 'y'
+                        matrix['マージキュー: メソッド'][col] = conf.get('merge_method', 'NA')
+                        matrix['マージキュー: 同時ビルド数'][col] = conf.get('build_concurrency', 'NA')
+                        matrix['マージキュー: 最小グループ数'][col] = conf.get('min_group_size', 'NA')
+                        matrix['マージキュー: 最大グループ数'][col] = conf.get('max_group_size', 'NA')
+                        matrix['マージキュー: 最小グループ待機分'][col] = conf.get('wait_time_to_meet_min_group_size', 'NA')
+                        matrix['マージキュー: ステータスチェックタイムアウト'][col] = conf.get('status_check_timeout', 'NA')
+                        matrix['マージキュー: 全てのエントリが必須チェック合格'][col] = (
+                            'y' if conf.get('require_all_group_entries_to_pass', False) else 'n'
+                        ) if conf else 'NA'
+                    if rule_type == 'required_deployments':
+                        matrix['デプロイメント必須'][col] = 'y'
+                    if rule_type == 'signed_commits':
+                        matrix['サイン済みコミット必須'][col] = 'y'
+                    if rule_type == 'pull_request':
+                        matrix['プルリクエストのマージ前に必須'][col] = 'y'
+                    if rule_type == 'required_status_checks':
+                        matrix['ステータスチェックの必須'][col] = 'y'
+                        checks = conf.get('required_status_checks', [])
+                        matrix['必須ステータスチェック名'][col] = ','.join(checks) if checks else 'NA'
+                    if rule_type == 'block_force_pushes':
+                        matrix['強制プッシュのブロック'][col] = 'y'
+                    if rule_type == 'code_scanning_results':
+                        matrix['コードスキャン結果制限'][col] = 'y'
+                if 'bypass_actors' in rs:
+                    actors = rs.get('bypass_actors', [])
+                    matrix['バイパスアクター'][col] = ','.join([a.get('actor_id', '') for a in actors]) if actors else 'NA'
         else:
-            # ルールセット自体なしの場合
             col = (repo, '(ルールセットなし)', branch)
             columns.append(col)
             for key in RULESET_KEYS:
-                matrix[key][col] = 'n'
+                matrix[key][col] = 'NA'
     return columns, matrix
 
 def main():
