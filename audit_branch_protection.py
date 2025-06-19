@@ -13,15 +13,15 @@ HEADERS = {
 # --- クラシック保護 項目 ---
 CLASSIC_KEYS = [
     'プルリクエストのマージ前にレビューが必須',
+    '必須レビュー数',
     'ステータスチェックの必須',
+    '必須ステータスチェック名',
     '直線的な履歴の必須',
     'サイン済みコミット必須',
     '強制プッシュの許可',
     '削除の許可',
     '管理者も含める',
-    '必須ステータスチェック名',
-    '必須レビュー数',
-    '必須デプロイメント環境'
+    '必須デプロイメント環境',
 ]
 
 # --- ルールセット 項目 ---
@@ -41,6 +41,7 @@ RULESET_KEYS = [
     'デプロイメント必須',
     'サイン済みコミット必須',
     'プルリクエストのマージ前に必須',
+    '必須レビュー数',
     'ステータスチェックの必須',
     '必須ステータスチェック名',
     '強制プッシュのブロック',
@@ -88,16 +89,16 @@ def extract_classic_matrix(repos, branch):
             matrix[key][col] = 'NA'
         if prot:
             matrix['プルリクエストのマージ前にレビューが必須'][col] = 'y' if prot.get('required_pull_request_reviews') else 'n'
+            pr_reviews = prot.get('required_pull_request_reviews', {})
+            matrix['必須レビュー数'][col] = pr_reviews.get('required_approving_review_count', 'NA') if pr_reviews else 'NA'
             matrix['ステータスチェックの必須'][col] = 'y' if prot.get('required_status_checks') else 'n'
+            status_checks = prot.get('required_status_checks', {}).get('checks', [])
+            matrix['必須ステータスチェック名'][col] = ','.join([sc['context'] for sc in status_checks]) if status_checks else 'NA'
             matrix['直線的な履歴の必須'][col] = 'y' if prot.get('required_linear_history', {}).get('enabled') else 'n'
             matrix['サイン済みコミット必須'][col] = 'y' if prot.get('required_signatures', {}).get('enabled') else 'n'
             matrix['強制プッシュの許可'][col] = 'y' if prot.get('allow_force_pushes', {}).get('enabled') else 'n'
             matrix['削除の許可'][col] = 'y' if prot.get('allow_deletions', {}).get('enabled') else 'n'
             matrix['管理者も含める'][col] = 'y' if prot.get('enforce_admins', {}).get('enabled') else 'n'
-            pr_reviews = prot.get('required_pull_request_reviews', {})
-            matrix['必須レビュー数'][col] = pr_reviews.get('required_approving_review_count', 'NA') if pr_reviews else 'NA'
-            status_checks = prot.get('required_status_checks', {}).get('checks', [])
-            matrix['必須ステータスチェック名'][col] = ','.join([sc['context'] for sc in status_checks]) if status_checks else 'NA'
             deployments = prot.get('required_deployments', {}).get('environments', [])
             matrix['必須デプロイメント環境'][col] = ','.join(deployments) if deployments else 'NA'
     return columns, matrix
@@ -142,16 +143,17 @@ def extract_ruleset_matrix(repos, branch):
                         matrix['マージキュー: 最小グループ数'][col] = conf.get('min_group_size', 'NA')
                         matrix['マージキュー: 最大グループ数'][col] = conf.get('max_group_size', 'NA')
                         matrix['マージキュー: 最小グループ待機分'][col] = conf.get('wait_time_to_meet_min_group_size', 'NA')
-                        matrix['マージキュー: ステータスチェックタイムアウト'][col] = conf.get('status_check_timeout', 'NA')
                         matrix['マージキュー: 全てのエントリが必須チェック合格'][col] = (
                             'y' if conf.get('require_all_group_entries_to_pass', False) else 'n'
                         ) if conf else 'NA'
+                        matrix['マージキュー: ステータスチェックタイムアウト'][col] = conf.get('status_check_timeout', 'NA')
                     if rule_type == 'required_deployments':
                         matrix['デプロイメント必須'][col] = 'y'
                     if rule_type == 'signed_commits':
                         matrix['サイン済みコミット必須'][col] = 'y'
                     if rule_type == 'pull_request':
                         matrix['プルリクエストのマージ前に必須'][col] = 'y'
+                        matrix['必須レビュー数'][col] = conf.get('required_approving_review_count', 'NA')
                     if rule_type == 'required_status_checks':
                         matrix['ステータスチェックの必須'][col] = 'y'
                         checks = conf.get('required_status_checks', [])
